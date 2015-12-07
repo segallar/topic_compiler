@@ -1,0 +1,52 @@
+body {
+  padding-top: 50px;
+}
+.main-text {
+/*  padding: 40px 15px; */
+  text-align: center;
+}
+th {
+  text-align: center;
+}
+.list-button
+{
+    text-align: left;
+}
+.map {
+    height: 400px;
+    width: 100%;
+}
+.mono {
+    text-align: left;
+    font-family: monospace;
+}
+.value-cell {
+    text-align: right;
+}
+.date-cell {
+    text-align: left;
+}
+.event-bar-day {
+    font-size: 1.8em;
+    color:lightblue;
+}
+.event-bar-hour {
+    font-size: 1.8em;
+    color:darkgray;
+}
+.event-bar-temp {
+    font-size: 1.0em;
+    color: black;
+    text-align: right;
+}
+.event-bar-temp-max {
+    font-size: 0.8em;
+    color: crimson;
+    text-align: right;
+}
+.event-bar-temp-min {
+    font-size: 0.8em;
+    color: cornflowerblue;
+    text-align: right;
+}
+
