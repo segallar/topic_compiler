@@ -9,10 +9,7 @@
     <!--link rel="icon" href="../../favicon.ico"-->
 
     <title>Topic compiler</title>
-
-    <!-- Leaflet CSS -->  
-    <link rel="stylesheet" href="lib/leaflet/leaflet.css" />  
-      
+   
     <!-- Bootstrap core CSS -->
     <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css" />
 
@@ -38,7 +35,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#" onclick="menuClick('');" id="menu-item-">Topic compiler</a>
+          <a class="navbar-brand menu-item" href="#" onclick="menuClick('');" id="menu-item-">Topic compiler</a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
           <ul class="nav navbar-nav" id="menu">
@@ -77,11 +74,32 @@
                 
       <div class="main-text" id="main-text-texts">
           <h2>Texts</h2>
+          <div>
+          <ul class="nav nav-pills">
+              <li role="presentation" id="text-pill-list" class="text-pill active"><a href="javascript:text_click('list')">List</a></li>
+              <li role="presentation" id="text-pill-show" class="text-pill"><a href="javascript:text_click('show')">Show</a></li>
+              <li role="presentation" id="text-pill-upload" class="text-pill"><a href="javascript:text_click('upload')">Upload</a></li>
+          </ul>
+          </div>
+          <div id="text-page-list" class="text-page">
+              List
+          </div>
+          <div id="text-page-show" class="hidden text-page">
+              <a name="text-show-top"></a>
+              <div id="text-show">Text to show</div>
+          </div>
+          <div id="text-page-upload" class="hidden text-page">
+              <p align=left>Put your text here...</p>
+              <textarea class="form-control" id="text-input"></textarea><br/>
+              <p align=left><a class="btn btn-default" href="javascript:text_upload()">Upload</a></p>
+              <div id="text-status" class="alert alert-success hidden" role="alert"></div>
+          </div>
           
       </div>
       
       <div class="main-text" id="main-text-dic">
-           <h2>Dictionary</h2>    
+           <h2>Dictionary</h2>
+            
       </div>    
         
       <div class="main-text" id="main-text-user">
@@ -104,8 +122,39 @@
 
 <script>
     
+//
+// Texts
+//
 
+function texts_click(firstrun) {
+    if(firstrun) {
+        $(".text-page").hide();
+        $("#text-page-list").show();
+        $(".text-page").removeClass("hidden");
+    }
+}
     
+function text_click( item ) {
+    $(".text-page").hide();
+    $(".text-pill").removeClass("active");
+    $("#text-page-"+item).show();
+    $("#text-pill-"+item).addClass("active");
+}
+    
+function text_upload() {
+    var text = $("#text-input").val();
+    text = text.replace(/\r?\n/g, '<br />');
+    $.ajax({
+        url: '/server.php',
+        type: 'POST',
+        data: { text: text , cmd: 'txt_upload' },
+        success: function(result) {
+            $("#text-status").removeClass("hidden");
+            $("#text-status").text('the request was successfully sent to the server');
+            //$("#text-show").html( result ); 
+        }
+    });
+}
     
 //
 // Auth
@@ -173,10 +222,10 @@ function menuClick(item) {
     } else { 
         $("#menu-item-").css("color","white"); 
     }
-    $( ".active" ).removeClass("active");
-    $( "#menu-item-" + item).addClass("active");
-    $( ".main-text" ).hide();
-    $( "#main-text-" + item ).show();
+    $(".menu-item").removeClass("active");
+    $("#menu-item-" + item).addClass("active");
+    $(".main-text").hide();
+    $("#main-text-" + item ).show();
     if($("#menu-item-"+item).hasClass('first-run')) {
         first_run = true;
         $("#menu-item-"+item).removeClass('first-run');
@@ -202,7 +251,7 @@ function show_menu() {
         } else { 
             activeClass = ""; 
         }
-        $("<li onClick='menuClick("+'"'+key+'"'+")' class=\"first-run "+activeClass+"\" id='menu-item-"+key+"'><a href='#"+key+"'>"+val+"</a></li>").appendTo("#menu");
+        $("<li onClick='menuClick("+'"'+key+'"'+")' class=\"first-run menu-item "+activeClass+"\" id='menu-item-"+key+"'><a href='#"+key+"'>"+val+"</a></li>").appendTo("#menu");
     });
     if( location.hash != "" ) menuClick(active); 
 }
