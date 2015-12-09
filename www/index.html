@@ -49,7 +49,7 @@
         <div class="main-text" id="main-text-">
             <h1>Topic compiler</h1>
             <p style="text-align:left">This is topic_compiler v0.1</p>
-            
+            <p style="text-align:left" id="main-text-hello"></p>
             <div class="col-md-6 col-md-offset-3" align="left" id="login_form">
               <div class="form-group">
                 <label for="exampleInputEmail1">Email address</label>
@@ -77,22 +77,47 @@
           <div>
           <ul class="nav nav-pills">
               <li role="presentation" id="text-pill-list" class="text-pill active"><a href="javascript:text_click('list')">List</a></li>
-              <li role="presentation" id="text-pill-show" class="text-pill"><a href="javascript:text_click('show')">Show</a></li>
+              <li role="presentation" id="text-pill-show" class="text-pill" style="display:none">
+                  <a href="javascript:text_click('show')">Show</a></li>
               <li role="presentation" id="text-pill-upload" class="text-pill"><a href="javascript:text_click('upload')">Upload</a></li>
           </ul>
           </div>
           <div id="text-page-list" class="text-page">
-              List
+              <div style="text-align:left"><br/>
+              <a class="btn btn-default" href="javascript:text_list_load()">Refresh</a>
+              </div>
+              <table class="table table-striped table-condensed" style="text-align:left;">
+              <thead><tr><th>Name</th><th>Author</th><th>Language</th><th>Time</th><th>User</th></tr></thead> 
+              <tbody id="text-list-tbl"></tbody>
+          </table>
           </div>
-          <div id="text-page-show" class="hidden text-page">
+          <div id="text-page-show" class="text-page" style="display:none">
               <a name="text-show-top"></a>
-              <div id="text-show">Text to show</div>
+              <div id="text-show">
+                 <div id="text-show-status"></div>
+                 <div id="text-show-div" style="text-align:left">Loading...</div> 
+              </div>
           </div>
-          <div id="text-page-upload" class="hidden text-page">
-              <p align=left>Put your text here...</p>
-              <textarea class="form-control" id="text-input"></textarea><br/>
-              <p align=left><a class="btn btn-default" href="javascript:text_upload()">Upload</a></p>
-              <div id="text-status" class="alert alert-success hidden" role="alert"></div>
+          <div id="text-page-upload" class="text-page" style="text-align:left;display:none">
+              <form><br/>
+              <div class="form-group">
+                  <label for="text-name">Name of text</label>
+                  <input id="text-name" type="text" class="form-control" placeholder="Text name">
+              </div>
+              <div class="form-group">
+                  <label for="text-author">Author</label>
+                  <input id="text-author" type="text" class="form-control" placeholder="Author">
+              </div>
+              <div class="form-group">
+                  <label for="text-input">Put your text here...</label>
+                  <textarea class="form-control" id="text-input"></textarea>
+              </div>
+              <div class="form-group" align=left>
+                  <a class="btn btn-default" href="javascript:text_upload()">Upload</a>
+                  <a class="btn btn-default" href="javascript:text_clear()">Clear form</a>
+              </div>
+              </form>      
+              <div id="text-status" class="alert hidden" role="alert"></div>
           </div>
           
       </div>
@@ -121,17 +146,107 @@
     <script src="lib/bootstrap/js/bootstrap.min.js"></script>
 
 <script>
+ 
+//
+// common part
+//
     
+if (!Array.prototype.remove) {
+  Array.prototype.remove = function(val) {
+    var i = this.indexOf(val);
+         return i>-1 ? this.splice(i, 1) : [];
+  };
+}
+    
+isFunc = function(func){ return typeof window[func] === "function"; }        
+
 //
 // Texts
 //
-
+    
+var marked = Array();
+    
 function texts_click(firstrun) {
     if(firstrun) {
-        $(".text-page").hide();
-        $("#text-page-list").show();
-        $(".text-page").removeClass("hidden");
+        text_list_load();
     }
+}
+ 
+function text_list_load() {
+    $("#text-list-tbl").html("");
+    $.getJSON("/server.php?cmd=get_text_list", function (data) {
+        $.each( data , function (key, val) {
+            id = val['id'];
+            var s = "<tr>";
+            s += "<td>";
+            s += "<a href=\"javascript:text_list_menu("+id+")\">";
+            s += "<span class=\"glyphicon glyphicon-option-vertical\"></span></a>";
+            s += "<a href=\"javascript:text_show("+id+", "+val['processed']+")\">"+val["tname"]+"</a>";
+            if(val['processed']==0) {
+                s += "&nbsp;<a href=\"javascript:text_analyse("+id+")\"><span class=\"label label-info\">RAW</span></a>";
+            }
+            s += "<div id=\"text-list-menu-"+id+"\" style=\"display:none\">";
+            s += "<a class=\"btn btn-default btn-xs disabled\">Delete</a></div>";
+            s += "</td>";
+            s += "<td>"+val["author"]+"</td>";
+            s += "<td>"+val["lname"]+"</td>";
+            s += "<td>"+val["ts"]+"</td>";
+            s += "<td>"+val["uname"]+"</td></tr>";
+            
+            $(s).appendTo("#text-list-tbl");
+        });
+    }); 
+}
+    
+function text_list_menu(id) {
+    $("#text-list-menu-"+id).show();
+}
+    
+function text_show_marks(id) {
+    $("#text-show-marks"+id).html();
+    var s = "";
+    s += "<li><a href=\"#top\"><b>Top</b></a></li>";
+    s += "<li role=\"separator\" class=\"divider\"></li>";    
+    $.each( marked , function (key, val) {
+        s += "<li><a href=\"#text-show-jmp-"+val+"\"><b>"+$("#text-show-seq-"+val).text();
+        s += "</b> "+$("#text-show-comment-"+val).val()+"</a></li>";
+    });
+    $("#text-show-marks-"+id).html(s);
+}    
+
+function text_show_menu(id) {
+    if(!$("#text-show-menu-"+id).hasClass("menu")) {
+        var s = "<form class=\"form-inline\">";
+        s += "<div class=\"form-group btn-group\">";
+        s += "<a class=\"btn btn-default dropdown-toggle\" data-toggle=\"dropdown\" onClick=\"text_show_marks("+id+")\">Jump";
+        s += " <span class=\"caret\"></span></a>";
+        s += "<ul class=\"dropdown-menu\" id=\"text-show-marks-"+id+"\">";
+        s += "</ul></div>&nbsp;";
+        s += "<div class=\"form-group\"><label for=\"text-show-comment-"+id+"\">Comment:</label>&nbsp;";
+        s += "<input type=\"text\" id=\"text-show-comment-"+id+"\" class=\"form-control\"></div>&nbsp;";
+        s += "<div class=\"form-group\">"
+        s += "<a class=\"btn btn-default\" href=\"javascript:text_show_mark("+id+")\">Mark</a></div>";
+        s += "</form>";
+        $(s).appendTo("#text-show-menu-"+id);
+        $("#text-show-menu-"+id).addClass("menu");
+    }
+}
+    
+function text_show_mark(id) {
+    // visual
+    if(  $("#text-show-menu-"+id).hasClass("marked") ) {
+        $("#text-show-menu-"+id).css("background-color","white").removeClass("marked");
+        marked.remove(id);
+    } else {
+        $("#text-show-menu-"+id).css("background-color","yellow").addClass("marked");
+        marked.push(id);
+    }
+}
+    
+function text_analyse(id) {
+    $.getJSON("/server.php?cmd=text_analyse&id="+id, function (data) {
+        text_list_load();
+    });
 }
     
 function text_click( item ) {
@@ -139,6 +254,42 @@ function text_click( item ) {
     $(".text-pill").removeClass("active");
     $("#text-page-"+item).show();
     $("#text-pill-"+item).addClass("active");
+    if(item == "list") {
+        text_list_load();
+    }
+}
+    
+function text_show(id,raw) {
+    $("#text-pill-show").show();
+    text_click( "show" );
+    if(raw == 0) {
+        $("#text-show-status").html("<h2 style=\"color:red\"><b>RAW</b></h2>");
+        $.getJSON("/server.php?cmd=get_text_raw&id="+id, function (data) {
+            $("#text-show-div").html(data['raw']);
+        });
+    } else {
+        $("#text-show-div").html("Loading...");
+        $("#text-show-status").html("<h2 style=\"color:lightblue\"><b>PROCESSED</b></h2>");
+        $.getJSON("/server.php?cmd=get_text_processed&id="+id, function (data) {
+            $("#text-show-div").html("");
+            $.each( data , function (key, val) {
+                var s = "<a name=\"text-show-jmp-"+val["id"]+"\">";
+                s += "<div align=left id=\"text-show-menu-"+val["id"]+"\">";
+                s += "<a href=\"javascript:text_show_menu("+val["id"]+")\">";
+                s += "<span class=\"glyphicon glyphicon-option-vertical\" ";
+                s += " aria-hidden=\"true\"></span></a><b id=\"text-show-seq-"+val["id"]+"\">";
+                s += val["sequence"]+"</b> "+val['raw']+"</div></a>";
+                $(s).appendTo("#text-show-div");
+            } );
+        });
+    }
+}
+    
+function text_clear() {
+    $("#text-name").val("");
+    $("#text-author").val("");
+    $("#text-input").val("");
+    $("#text-status").addClass("hidden");
 }
     
 function text_upload() {
@@ -147,11 +298,18 @@ function text_upload() {
     $.ajax({
         url: '/server.php',
         type: 'POST',
-        data: { text: text , cmd: 'txt_upload' },
+        data: { 
+            text: text , 
+            name: $("#text-name").val(),
+            author: $("#text-author").val(),
+            cmd : 'text_upload' },
         success: function(result) {
             $("#text-status").removeClass("hidden");
-            $("#text-status").text('the request was successfully sent to the server');
-            //$("#text-show").html( result ); 
+            if(result['id'] > 0) {
+                $("#text-status").removeClass("alert-warning").addClass("alert-success").text('Text was successfully uploaded to the server');
+            } else {
+                $("#text-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
+            }
         }
     });
 }
@@ -174,8 +332,10 @@ function connectionTest() {
             }
             $("#test").html("Connection to server - <b>"+data["hello"]+
                 "</b><div> Auth - "+data['auth']+"</div>");
-            if(auth) 
+            if(auth) {
                 $("#login_form").hide();
+                $("#main-text-hello").html("<h2>Hello "+data['session_user_name']+" !</h2>");
+            }
         })
         .fail(function( jqxhr, textStatus, error ) {
             $("#test").html("<div class='label label-danger'> Status - "+textStatus + ", error - " + error + "</div>"+
@@ -214,8 +374,6 @@ var menu = {
     user     : "User"
 };
   
-isFunc = function(func){ return typeof window[func] === "function"; }    
-
 function menuClick(item) {
     if(item!="") { 
         $("#menu-item-").css("color","darkgray");
