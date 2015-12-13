@@ -388,6 +388,29 @@ function text_analyser() {
 }
 
 //
+//
+//
+
+function dic_upload() {
+    if(isset($_POST['id'])&&$_POST['id']!="") {
+        $id = (int)$_POST['id'];
+    }
+    $error = false; 
+    foreach($_FILES as $file ) {
+        $handle = fopen($file['tmp_name'], "r");
+        $arr = fgetcsv($handle);
+        echo var_dump($arr);
+        //$contents = fread($handle, filesize($filename));
+        fclose($handle);
+        // parse dic file
+        
+    }
+    echo "error - $error id is $id ".var_dump($_FILES);
+    if(!$error)
+        echo var_dump($files);
+}
+
+//
 //  New case block
 //
 
@@ -402,7 +425,7 @@ if($auth) {
     if($cmd=="texts_new")       $return = process_table();
     if($cmd=="texts_anl")       $return = text_analyser();
     if($cmd=="sentences_lst")   $return = process_table();
-
+    if($cmd=="dic_upl")         $return = dic_upload();
 }    
     
 if(isset($GLOBAL['db']))

@@ -141,7 +141,7 @@
           <div id="dic-page-dict" class="dic-page" style="text-align:left;display:none">
               <a class="btn btn-primary" href="javascript:dic_add_dic()">Add new one</a>
               <table class="table table-striped table-condensed" style="text-align:left;">
-              <thead><tr><th>Name</th><th>Language</th><th>URL</th><th>Time</th><th>User</th></tr></thead> 
+              <thead><tr><th>Name</th><th>Status</th><th>Language</th><th>URL</th><th>Time</th><th>User</th></tr></thead> 
               <tbody id="dic-dict-tbl"></tbody></table>
           </div>
           
@@ -149,18 +149,23 @@
               <form>
                 <div class="form-group">
                     <label for="dic-name">Dictionary name</label>
-                    <input id="dic-name" type="text" class="form-control" placeholder="Dictionary name">
+                    <input id="dic-name" type="text" class="form-control" placeholder="Dictionary name" />
                 </div>
                 <div class="form-group">
                     <label for="dic-url">URL</label>
-                    <input id="dic-url" type="text" class="form-control" placeholder="URL">
+                    <input id="dic-url" type="text" class="form-control" placeholder="URL" />
                 </div>
+                <div class="form-group">
+                    <label for="dic-file">File</label>
+                    <input id="dic-file" type="file" enctype="multipart/form-data" class="form-control" placeholder="" />
+                    <a class="btn btn-default" id="dic-file-btn" href="javascript:dic_upload(-1)">Upload</a>
+                </div>      
                 <div class="form-group">
                     <label for="dic-comment">Comments</label>
                     <textarea class="form-control" id="dic-comment"></textarea>
                 </div>
                 <div class="form-group" align=left>
-                  <a class="btn btn-primary" href="javascript:dic_upd(-1)" id="dic-page-dicadd-sub">Add new ...</a>
+                  <a class="btn btn-primary" href="javascript:dic_process('upd',-1)" id="dic-page-dicadd-sub">Add new ...</a>
                   <a class="btn btn-default" href="javascript:dic_clear()" id="dic-page-dicadd-clr">Clear form</a>
                   <a class="btn btn-danger" id="dic-page-dicadd-del" style="display:none">Delete</a>  
                 </div> 
@@ -367,6 +372,9 @@ function text_upload() {
     
 function dics_click(firstrun) {
     if(firstrun) {
+        $('#dic-file').change( function() {
+            files = this.files;
+        });
         dic_list_load();
     }
 }
@@ -391,12 +399,13 @@ function dic_list_load() {
             id = val['id'];
             var s = "<tr>";
             s += "<td><a href=\"javascript:dic_view("+id+")\"><b>"+val["name"]+"</b></a></td>";
+            s += "<td>"+val["ws_status"]+"</td>";
             s += "<td>"+val["lang"]+"</td>";
             s += "<td>"+val["url"]+"</td>";
             s += "<td>"+val["ts"]+"</td>";
-            s += "<td>"+val["user"]+"</td>";
+            s += "<td>"+val["user"]+" </td>";
             s += "</tr>";
-            s += "<tr><td colspan=5>";
+            s += "<tr><td colspan=6>";
             s += val["comment"]+"</td></tr>";
             $(s).appendTo("#dic-dict-tbl");
         });
@@ -407,6 +416,28 @@ function dic_clear() {
     $("#dic-name").val("");  
     $("#dic-url").val("");  
     $("#dic-comment").val("");  
+}
+    
+var files;
+    
+function dic_upload(id) {
+    var data = new FormData();
+    $.each( files, function( key, value ){
+        data.append( key, value );
+    });
+    data.append("cmd","dic_upl");
+    data.append("id",id);
+    $.ajax({
+        url: '/server.php',
+        type: 'POST',
+        cache: false,
+        dataType: 'json',
+        processData: false, // Не обрабатываем файлы (Don't process the files)
+        contentType: false, // Так jQuery скажет серверу что это строковой запрос
+        data: data,
+        success: function (result) {},
+        error: function( jqXHR, textStatus, errorThrown ) {}
+    });
 }
     
 function dic_process( action, id ) {
@@ -450,6 +481,7 @@ function dic_add_dic() {
     dic_clear();
     $("#dic-page-dicadd-del").hide();
     $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',-1)").text("Add new");
+    $("#dic-file-btn").attr("href","javascript:dic_upload(-1)");
     dic_click( "dicadd" );
 }
     
@@ -461,6 +493,7 @@ function dic_view(id) {
         var text = data[0]["comment"];
         text = text.replace(/<br \/>/g, "\n");
         $("#dic-comment").val(text);  
+        $("#dic-file-btn").attr("href","javascript:dic_upload("+data[0]["id"]+")");
         $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',"+data[0]["id"]+")").text("Update");
         $("#dic-page-dicadd-del").attr("href","javascript:dic_process('del',"+data[0]["id"]+")").show();
     });
@@ -593,6 +626,7 @@ $( document ).ready( function() {
     
     // Testing connection to server
     connectionTest();
+
 });
 </script>
 </body>
