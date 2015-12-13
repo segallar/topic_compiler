@@ -46,7 +46,7 @@
 
     <div class="container">
 
-        <div class="main-text" id="main-text-">
+      <div class="main-text" id="main-text-">
             <h1>Topic compiler</h1>
             <p style="text-align:left">This is topic_compiler v0.1</p>
             <p style="text-align:left" id="main-text-hello"></p>
@@ -59,7 +59,7 @@
                 <label for="exampleInputPassword1">Password</label>
                 <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password">
               </div>
-              <button type="submit" class="btn btn-default" onClick="submit_auth()">Submit</button>
+              <button type="submit" class="btn btn-primary" onClick="submit_auth()">Submit</button>
             </div>
             
             <div class="row col-md-6 col-md-offset-3">
@@ -113,7 +113,7 @@
                   <textarea class="form-control" id="text-input"></textarea>
               </div>
               <div class="form-group" align=left>
-                  <a class="btn btn-default" href="javascript:text_upload()">Upload</a>
+                  <a class="btn btn-primary" href="javascript:text_upload()">Upload</a>
                   <a class="btn btn-default" href="javascript:text_clear()">Clear form</a>
               </div>
               </form>      
@@ -122,13 +122,56 @@
           
       </div>
       
-      <div class="main-text" id="main-text-dic">
+      <div class="main-text" id="main-text-dics">
            <h2>Dictionary</h2>
-            
+           <div>
+           <ul class="nav nav-pills">
+              <li role="presentation" id="dic-pill-list" class="dic-pill active"><a href="javascript:dic_click('list')">List</a></li>
+              <li role="presentation" id="dic-pill-show" class="dic-pill" style="display:none">
+                  <a href="javascript:dic_click('show')">Word</a></li>
+              <li role="presentation" id="dic-pill-upload" class="dic-pill"><a href="javascript:dic_click('upload')">Upload</a></li>
+              <li role="presentation" id="dic-pill-dict" class="dic-pill"><a href="javascript:dic_click('dict')">Dictionaries</a></li> 
+              <li role="presentation" id="dic-pill-dicadd" class="dic-pill" style="display:none">
+                  <a href="javascript:dic_click('dicadd')">Options</a></li> 
+           </ul>
+           </div>
+          
+          <div id="dic-page-list" class="dic-page"> Words list </div>
+          
+          <div id="dic-page-dict" class="dic-page" style="text-align:left;display:none">
+              <a class="btn btn-primary" href="javascript:dic_add_dic()">Add new one</a>
+              <table class="table table-striped table-condensed" style="text-align:left;">
+              <thead><tr><th>Name</th><th>Language</th><th>URL</th><th>Time</th><th>User</th></tr></thead> 
+              <tbody id="dic-dict-tbl"></tbody></table>
+          </div>
+          
+          <div id="dic-page-dicadd" class="dic-page" style="text-align:left;display:none">
+              <form>
+                <div class="form-group">
+                    <label for="dic-name">Dictionary name</label>
+                    <input id="dic-name" type="text" class="form-control" placeholder="Dictionary name">
+                </div>
+                <div class="form-group">
+                    <label for="dic-url">URL</label>
+                    <input id="dic-url" type="text" class="form-control" placeholder="URL">
+                </div>
+                <div class="form-group">
+                    <label for="dic-comment">Comments</label>
+                    <textarea class="form-control" id="dic-comment"></textarea>
+                </div>
+                <div class="form-group" align=left>
+                  <a class="btn btn-primary" href="javascript:dic_upd(-1)" id="dic-page-dicadd-sub">Add new ...</a>
+                  <a class="btn btn-default" href="javascript:dic_clear()" id="dic-page-dicadd-clr">Clear form</a>
+                  <a class="btn btn-danger" id="dic-page-dicadd-del" style="display:none">Delete</a>  
+                </div> 
+              </form>
+              <div id="dic-status" class="alert hidden" role="alert"></div>
+          </div>
+          
       </div>    
         
       <div class="main-text" id="main-text-user">
-          <br/><a class="btn btn-default" href="javascript:logout()" role="button">Logout</a>
+          <br/><a class="btn btn-primary" href="javascript:logout()" role="button">Logout</a>
           <table class="table table-striped table-condensed">
               <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
               <tbody id="user-tbl"></tbody>
@@ -174,24 +217,24 @@ function texts_click(firstrun) {
  
 function text_list_load() {
     $("#text-list-tbl").html("");
-    $.getJSON("/server.php?cmd=get_text_list", function (data) {
+    $.getJSON("/server.php?cmd=texts_lst", function (data) {
         $.each( data , function (key, val) {
             id = val['id'];
             var s = "<tr>";
             s += "<td>";
             s += "<a href=\"javascript:text_list_menu("+id+")\">";
             s += "<span class=\"glyphicon glyphicon-option-vertical\"></span></a>";
-            s += "<a href=\"javascript:text_show("+id+", "+val['processed']+")\">"+val["tname"]+"</a>";
+            s += "<a href=\"javascript:text_show("+id+", "+val['processed']+")\">"+val["name"]+"</a>";
             if(val['processed']==0) {
                 s += "&nbsp;<a href=\"javascript:text_analyse("+id+")\"><span class=\"label label-info\">RAW</span></a>";
             }
             s += "<div id=\"text-list-menu-"+id+"\" style=\"display:none\">";
-            s += "<a class=\"btn btn-default btn-xs disabled\">Delete</a></div>";
+            s += "<a class=\"btn btn-danger btn-xs disabled\">Delete</a></div>";
             s += "</td>";
             s += "<td>"+val["author"]+"</td>";
-            s += "<td>"+val["lname"]+"</td>";
+            s += "<td>"+val["lang"]+"</td>";
             s += "<td>"+val["ts"]+"</td>";
-            s += "<td>"+val["uname"]+"</td></tr>";
+            s += "<td>"+val["user"]+"</td></tr>";
             
             $(s).appendTo("#text-list-tbl");
         });
@@ -225,7 +268,7 @@ function text_show_menu(id) {
         s += "<div class=\"form-group\"><label for=\"text-show-comment-"+id+"\">Comment:</label>&nbsp;";
         s += "<input type=\"text\" id=\"text-show-comment-"+id+"\" class=\"form-control\"></div>&nbsp;";
         s += "<div class=\"form-group\">"
-        s += "<a class=\"btn btn-default\" href=\"javascript:text_show_mark("+id+")\">Mark</a></div>";
+        s += "<a class=\"btn btn-primary\" href=\"javascript:text_show_mark("+id+")\">Mark</a></div>";
         s += "</form>";
         $(s).appendTo("#text-show-menu-"+id);
         $("#text-show-menu-"+id).addClass("menu");
@@ -244,7 +287,7 @@ function text_show_mark(id) {
 }
     
 function text_analyse(id) {
-    $.getJSON("/server.php?cmd=text_analyse&id="+id, function (data) {
+    $.getJSON("/server.php?cmd=texts_anl&id="+id, function (data) {
         text_list_load();
     });
 }
@@ -264,13 +307,13 @@ function text_show(id,raw) {
     text_click( "show" );
     if(raw == 0) {
         $("#text-show-status").html("<h2 style=\"color:red\"><b>RAW</b></h2>");
-        $.getJSON("/server.php?cmd=get_text_raw&id="+id, function (data) {
-            $("#text-show-div").html(data['raw']);
+        $.getJSON("/server.php?cmd=texts_lst&raw=on&id="+id, function (data) {
+            $("#text-show-div").html(data[0]['raw']);
         });
     } else {
         $("#text-show-div").html("Loading...");
         $("#text-show-status").html("<h2 style=\"color:lightblue\"><b>PROCESSED</b></h2>");
-        $.getJSON("/server.php?cmd=get_text_processed&id="+id, function (data) {
+        $.getJSON("/server.php?cmd=sentences_lst&raw=on&text="+id, function (data) {
             $("#text-show-div").html("");
             $.each( data , function (key, val) {
                 var s = "<a name=\"text-show-jmp-"+val["id"]+"\">";
@@ -299,10 +342,11 @@ function text_upload() {
         url: '/server.php',
         type: 'POST',
         data: { 
-            text: text , 
+            raw: text , 
             name: $("#text-name").val(),
             author: $("#text-author").val(),
-            cmd : 'text_upload' },
+            lang: 1,
+            cmd: 'texts_new'},
         success: function(result) {
             $("#text-status").removeClass("hidden");
             if(result['id'] > 0) {
@@ -310,8 +354,117 @@ function text_upload() {
             } else {
                 $("#text-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
             }
+        },
+        error: function( jqXHR, textStatus, errorThrown ) {
+            $("#text-status").removeClass("alert-success").addClass("alert-warning").text('Error!'+textStatus);
         }
     });
+}
+  
+//
+// Dictionary
+//
+    
+function dics_click(firstrun) {
+    if(firstrun) {
+        dic_list_load();
+    }
+}
+    
+function dic_click( item ) {
+    $(".dic-page").hide();
+    $(".dic-pill").removeClass("active");
+    $("#dic-page-"+item).show();
+    $("#dic-pill-"+item).addClass("active").show();
+    if(item == "dict") {
+        dic_list_load();
+    }
+    if(item == "dicadd") {
+        $("#dic-status").hide();
+    }
+}
+    
+function dic_list_load() {
+    $("#dic-dict-tbl").html("");
+    $.getJSON("/server.php?cmd=dic_lst", function (data) {
+        $.each( data , function (key, val) {
+            id = val['id'];
+            var s = "<tr>";
+            s += "<td><a href=\"javascript:dic_view("+id+")\"><b>"+val["name"]+"</b></a></td>";
+            s += "<td>"+val["lang"]+"</td>";
+            s += "<td>"+val["url"]+"</td>";
+            s += "<td>"+val["ts"]+"</td>";
+            s += "<td>"+val["user"]+"</td>";
+            s += "</tr>";
+            s += "<tr><td colspan=5>";
+            s += val["comment"]+"</td></tr>";
+            $(s).appendTo("#dic-dict-tbl");
+        });
+    }); 
+}
+ 
+function dic_clear() {
+    $("#dic-name").val("");  
+    $("#dic-url").val("");  
+    $("#dic-comment").val("");  
+}
+    
+function dic_process( action, id ) {
+    if(action == "del") {
+        $.getJSON("/server.php?cmd=dic_del&id="+id, function(data) {});
+        $("#dic-pill-dicadd").hide();
+        dic_clear();
+        dic_click( "dict" );
+    }
+    if(action == "upd") {
+        var text = $("#dic-comment").val();
+        text = text.replace(/\r?\n/g, '<br />');
+        $.ajax({
+            url: '/server.php',
+            type: 'GET',
+            data: { 
+                id:     id,
+                name:   $("#dic-name").val(), 
+                url:    $("#dic-url").val(),
+                comment: text,  
+                cmd :   'dic_upd' },
+            success: function(result) {
+                $("#dic-status").removeClass("hidden");
+                if(result['id'] > 0) {
+                    $("#dic-status").removeClass("alert-warning").addClass("alert-success").text('Record was successfully updated');
+                    $("#dic-pill-dicadd").hide();
+                    dic_clear();
+                    dic_click( "dict" );
+                } else {
+                    $("#dic-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
+                }
+            },
+            error: function( jqXHR, textStatus, errorThrown ) {
+                $("#dic-status").removeClass("alert-success").addClass("alert-warning").text('Error! '+textStatus);
+            }
+        });
+    }
+}    
+    
+function dic_add_dic() {
+    dic_clear();
+    $("#dic-page-dicadd-del").hide();
+    $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',-1)").text("Add new");
+    dic_click( "dicadd" );
+}
+    
+function dic_view(id) {
+    dic_clear();
+    $.getJSON("/server.php?cmd=dic_lst&id="+id, function (data) {
+        $("#dic-name").val(data[0]["name"]);  
+        $("#dic-url").val(data[0]["url"]); 
+        var text = data[0]["comment"];
+        text = text.replace(/<br \/>/g, "\n");
+        $("#dic-comment").val(text);  
+        $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',"+data[0]["id"]+")").text("Update");
+        $("#dic-page-dicadd-del").attr("href","javascript:dic_process('del',"+data[0]["id"]+")").show();
+    });
+    dic_click( "dicadd" );
 }
     
 //
@@ -370,7 +523,7 @@ function logout() {
 var menu = {
     analytic : "Analytic",
     texts    : "Texts",
-    dic      : "Dictionary",
+    dics     : "Dictionary",
     user     : "User"
 };
   
@@ -405,11 +558,11 @@ function show_menu() {
     }
     $.each( menu , function (key, val) {
         if( active == key ) { 
-            activeClass = " active"; 
+            activeClass = "active"; 
         } else { 
             activeClass = ""; 
         }
-        $("<li onClick='menuClick("+'"'+key+'"'+")' class=\"first-run menu-item "+activeClass+"\" id='menu-item-"+key+"'><a href='#"+key+"'>"+val+"</a></li>").appendTo("#menu");
+        $("<li onClick='menuClick(\""+key+"\")' class=\"first-run menu-item "+activeClass+"\" id='menu-item-"+key+"'><a href='#"+key+"'>"+val+"</a></li>").appendTo("#menu");
     });
     if( location.hash != "" ) menuClick(active); 
 }

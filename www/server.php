@@ -1,15 +1,12 @@
 <?php
 
 #
-# garage project 
+# topic compiler project 
 #
 
-$mysql_database = "tc";
-$mysql_host = "127.0.0.1";
-$mysql_user = "www";
-$mysql_password = "wwwpass";
+$server_version = '0.1.2';
 
-$server_version = '0.0.1';
+$tables_subnames = Array( 'dic' => 'word_sources' );
 
 $cmd = "no_command";    
 if(isset($_GET['cmd'])) {
@@ -22,9 +19,9 @@ if(isset($_POST['cmd'])) {
 if($cmd!="php_info")
     header('Content-type: application/json; charset=utf-8');
 
-$debug = false;
+$GLOBAL['debug'] = false;
 if(isset($_GET['debug'])&&$_GET['debug']=="on") {
-    $debug = true;
+    $GLOBAL['debug'] = true;
 }  
 
 // auth test
@@ -53,53 +50,293 @@ if($auth) {
     $return['session_time_delta'] = ($_SESSION['last_time']-$_SESSION['begin_time']) / (60*60);
 }
 
-if($debug) {
+if($GLOBAL['debug']) {
     foreach($_SERVER as $key => $val) {
         $return["ENV_".$key] = $val;
     }
 }
 
-switch ( $cmd ) {
-case "hello":
-    break;
+function mysql_conn() {
+    
+    // mysql settings
+    $mysql_database = "tc";
+    $mysql_host = "127.0.0.1";
+    $mysql_user = "www";
+    $mysql_password = "wwwpass";
+    
+    if(!isset($GLOBAL['db'])) {
+        $GLOBAL['db'] = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
+            die(json_encode(Array($return, "error" => "Database error!")));
+        mysql_select_db($mysql_database, $GLOBAL['db']); 
+        $result = mysql_query("set names 'utf8'");
+    }
+}
+
+function auth_logout() {
+    global $return;
+    session_destroy();
+    $return['auth'] = false;
+    $return['mgs'] = "User logged out!";
+}
+    
+function auth_login() {
+    try{
+        $return["auth"] = "invalid_request";
+        if (isset($_GET['auth_name'])&&isset($_GET['auth_pass'])) {
+            mysql_conn();
+            $name = mysql_real_escape_string($_GET['auth_name']);
+            $pass = mysql_real_escape_string($_GET['auth_pass']);
+            $query = "SELECT id, name FROM users WHERE email='$name' AND password='$pass';";
+            //$return['query'] = $query;
+            session_destroy();
+            session_start();
+            $res = mysql_query($query) 
+                or die(json_encode(Array($return, "error" => "Invalid query", "mysql_error" => mysql_error(), "query" => $query)));
+            if ($row = mysql_fetch_assoc($res)) {
+                if(isset($row['id'])&&$row['id']!="") {
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
+                    $_SESSION['count'] = 0;
+                    $_SESSION['user_name'] = $row['name'];
+                    $date = date_create();
+                    $_SESSION['last_time'] = date_timestamp_get($date);
+                    $_SESSION['begin_time'] = $_SESSION['last_time'];
+                    $auth = true;
+                    $return["msg"] = "Authentication successful.";
+                    $return["auth"] = true;
+                } else {
+                    $auth = false;
+                    $return["auth"] = false;
+                    $return["msg"] = "No such user found.";
+                }
+            } else {
+                $return["auth"] = false;
+                $return["msg"] = "No such user found.";  
+            }
+        }
+    }
+    catch (Exception $e) {
+        if(isset($query)) $return['query'] = $query;
+        $return["error"] = $e->getMessage();
+    }
+    return $return;
+} 
+
+function process_table() {
+// cmd format :
+//      tbl_sub, where:
+//      tbl - table 
+//      sub - subcommand:
+//          lst - list of records
+//          upd - update record
+//          new - insert new record or upd command with id=-1
+//          del - erase record
+// GET modificators:
+//      &id=[x] - record id
+//      &raw=on - show raw data (in longtext)
+//      &[fld]=[x] - filter value on fld. Fields must be int or varchar 
+//
+    
+    global $cmd, $tables_subnames;
+    try {
+        $tbl = substr($cmd,0,strlen($cmd)-4);
+        if(isset($tables_subnames[$tbl]))
+            $tbl = $tables_subnames[$tbl];
+        $subcmd = substr($cmd,strlen($cmd)-3);
+        if(isset($tbl)) {
+            mysql_conn();
+            if(isset($_GET['id'])&&$_GET['id']!="") {
+                $id = (int)$_GET['id'];
+            }
+            if(isset($_POST['id'])&&$_POST['id']!="") {
+                $id = (int)$_POST['id'];
+            }
+            $where = " WHERE TRUE ";
+            if(isset($id)) 
+                $where .= " AND ( $tbl.id=$id ) ";
+            // select 
+            if($subcmd == "lst") {
+                $result = mysql_query("SHOW TABLES;");
+                $tables = Array(); 
+                while($arr = mysql_fetch_array($result)) {
+                    $tables[] = $arr[0];
+                }
+                $result = mysql_query("SHOW COLUMNS FROM $tbl;");
+                $fields = "";
+                $join = "";
+                while($arr = mysql_fetch_assoc($result)) {
+                    //check cross links to other tables
+                    if(in_array($arr['Field']."s",$tables)) {
+                        $fields .= $arr['Field']."s.name AS ".$arr['Field'].", ";
+                        $fields .= $tbl.".".$arr['Field']." AS ".$arr['Field']."_id, ";
+                        $join   .= " LEFT JOIN ".$arr['Field']."s ON $tbl.".$arr['Field']."=".$arr['Field']."s.id "; 
+                    } else {
+                        // normal operations
+                        if(substr($arr['Type'],0,8)=="longtext"||substr($arr['Type'],0,4)=="text") {
+                            if(isset($_GET['raw'])&&$_GET['raw']=='on')
+                                $fields .= $tbl.".".$arr['Field'].", ";
+                        }
+                        if(substr($arr['Type'],0,7)=="varchar"||substr($arr['Type'],0,8)=="tinytext"
+                            ||substr($arr['Type'],0,9)=="timestamp"||substr($arr['Type'],0,3)=="int") {
+                            $fields .= $tbl.".".$arr['Field'].", ";
+                        }
+                    }
+                    // check filters
+                    if(isset($_GET[$arr['Field']])&&$arr['Field']!="id") {
+                        if(substr($arr['Type'],0,3)=="int")
+                            $where .= "AND ( $tbl.".$arr['Field']."=".(int)$_GET[$arr['Field']]." ) ";
+                        if(substr($arr['Type'],0,7)=="varchar")
+                            $where .= "AND ( $tbl.".$arr['Field']."=\"".
+                                mysql_real_escape_string(trim((string)$_GET[$arr['Field']]))."\" ) ";
+                    }
+                }
+                $fields = substr($fields,0,strlen($fields)-2);
+                $query  = "SELECT $fields ";
+                $query .= "FROM $tbl $join $where;";
+                //echo $query;
+                $result = mysql_query($query); 
+                if (!$result) {
+                    return Array("msg" => 'Invalid query: '.mysql_error()." $query");
+                } else {
+                    $return = "";
+                    while($arr = mysql_fetch_assoc($result)) {
+                        $return[] = $arr;
+                    }
+                }
+                return $return;
+            } // end of lst cmd
+            if($subcmd == "del") {
+                if(!isset($id)) 
+                    return Array( "msg" => "no id found");
+                $query = "DELETE FROM $tbl $where ;";
+                $result = mysql_query($query); 
+                if (!$result) {
+                    return Array("msg" => 'Invalid query: ' . mysql_error());
+                } else {
+                    return Array("msg" => "ok");
+                }
+            } // end of del
+            if($subcmd == "upd" && $id == -1) 
+                $subcmd = "new";
+            // update
+            if($subcmd == "upd") {
+                if(!isset($id)) 
+                    return Array( "msg" => "no id found");
+                $set = "";
+                $result = mysql_query("SHOW COLUMNS FROM $tbl;");
+                while($arr = mysql_fetch_assoc($result)) {
+                    if($arr['Field']!="id") {
+                        if(isset($_GET[$arr['Field']])||isset($_POST[$arr['Field']])) {
+                            if(substr($arr['Type'],0,7)=="varchar"||substr($arr['Type'],0,8)=="longtext"||
+                               substr($arr['Type'],0,8)=="tinytext") {
+                                if(isset($_GET[$arr['Field']])) { 
+                                   $val = (string)$_GET[$arr['Field']];
+                                } else {
+                                   $val = (string)$_POST[$arr['Field']];
+                                }
+                                $val = mysql_real_escape_string(trim($val));
+                                $set .= " ".$arr['Field']." = \"".$val."\",";
+                            } // text
+                            if(substr($arr['Type'],0,3)=="int") {
+                                if(isset($_GET[$arr['Field']])) { 
+                                   $val = (int)$_GET[$arr['Field']];
+                                } else {
+                                   $val = (int)$_POST[$arr['Field']];
+                                }
+                                $set .= " ".$arr['Field']." = ".$val.",";
+                             } // int
+                        }
+                    }
+                    if($arr['Field']=="user") {
+                        $set .= " user=".$_SESSION['user_id'].",";    
+                    }
+                }
+                if($set!="") {
+                    $set = "SET ".substr($set,0,strlen($set)-1);
+                    $query = "UPDATE $tbl $set $where;";
+                    $result = mysql_query($query);
+                    if($result)
+                        return Array( "id" => $id);
+                    else 
+                        return Array( "msg" => " bad update query ".$result." ".$query);
+                } else {
+                    return Array( "msg" => "no values to set");
+                }
+            } // end of upd cmd
+            // insert into
+            if($subcmd == "new") {
+                $fields = "";
+                $values = "";
+                $reqflg = true;
+                $result = mysql_query("SHOW COLUMNS FROM $tbl;");
+                while($arr = mysql_fetch_assoc($result)) {
+                    if($arr['Field']!="id"&&$arr['Field']!="user") {
+                        if(isset($_GET[$arr['Field']])||isset($_POST[$arr['Field']])) {
+                            if(substr($arr['Type'],0,7)=="varchar"||substr($arr['Type'],0,8)=="longtext"||
+                               substr($arr['Type'],0,8)=="tinytext") {
+                                if(isset($_GET[$arr['Field']])) { 
+                                   $val = (string)$_GET[$arr['Field']];
+                                } else {
+                                   $val = (string)$_POST[$arr['Field']];
+                                }
+                                $val = mysql_real_escape_string(trim($val));
+                                $fields .= $arr['Field'].",";
+                                $values .= "\"".$val."\",";
+                            } // text
+                            if(substr($arr['Type'],0,3)=="int") {
+                                if(isset($_GET[$arr['Field']])) { 
+                                   $val = (int)$_GET[$arr['Field']];
+                                } else {
+                                   $val = (int)$_POST[$arr['Field']];
+                                }
+                                $fields .= $arr['Field'].",";
+                                $values .= " ".$val.",";
+                            } // int
+                        }
+                    }
+                    if($arr['Field']=="user") {
+                        $fields .= "user,";
+                        $values .= " ".$_SESSION['user_id'].",";    
+                    }
+                }
+                if($fields!="") {
+                    $fields = "(".substr($fields,0,strlen($fields)-1).")";
+                    $values = "(".substr($values,0,strlen($values)-1).")";
+                    $query = "INSERT INTO $tbl $fields VALUES $values;";
+                    $result = mysql_query($query);
+                    if($result)
+                        return Array( "id" => mysql_insert_id());
+                    else 
+                        return Array( "msg" => " bad insert query ".$result." ".$query);
+                } else {
+                    return Array( "msg" => "no values to set");
+                }
+            }
+            /*
+            id	    int(11) unsigned	NO	PRI	NULL	auto_increment
+            word	int(11)	    NO		NULL	
+            freq	int(11)	    YES		NULL	
+            source	int(11)	    NO		NULL	
+            ts	    timestamp	NO		CURRENT_TIMESTAMP	
+            */
+            
+ 
+        }
+    }
+    catch (Exception $e) {
+        if(isset($query)) $return['query'] = $query;
+        $return["error"] = $e->getMessage();
+        return $return;
+    }    
+}
+
 //
 // Texts actions
 //
-case "get_text_list":
+
+function text_analyser() { 
     try {
-        if(!$auth) 
-            break;
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
-        
-        $query  = "SELECT t.id, t.lang, l.name AS lname, t.name AS tname, t.author, t.ts, u.name AS uname, t.processed ";
-        $query .= "FROM texts t, langs l, users u WHERE l.id=t.lang AND u.id=t.user;";
-        
-        $result = mysql_query($query); 
-        if (!$result) {
-            die(json_encode('Invalid query: ' . mysql_error()));
-        } else {
-            $return = "";
-            while($arr = mysql_fetch_assoc($result)) {
-                $return[] = $arr;
-            }
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;            
-case "get_text_raw" :
-   try {
-        if(!$auth) 
-            break;
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
+        mysql_conn();
         
         $id = -1;
         if(isset($_GET['id'])&&$_GET['id']!="") {
@@ -108,73 +345,7 @@ case "get_text_raw" :
         if($id < 1) break;
        
         $query  = "SELECT raw ";
-        $query .= "FROM texts t WHERE t.id=$id;";
-        
-        $result = mysql_query($query); 
-        if (!$result) {
-            die(json_encode('Invalid query: ' . mysql_error()));
-        } else {
-            $return = mysql_fetch_assoc($result);
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;    
-case "get_text_processed" :
-   try {
-        if(!$auth) 
-            break;
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
-        
-        $id = -1;
-        if(isset($_GET['id'])&&$_GET['id']!="") {
-            $id = (int)$_GET['id'];
-        }
-        if($id < 1) { 
-            $return["msg"] = "no id found";
-            break; 
-        }
-       
-        $query  = "SELECT s.id, s.sequence ,s.raw  ";
-        $query .= "FROM sentences s WHERE s.text=$id ORDER BY s.sequence;";
-        
-        $result = mysql_query($query); 
-        if (!$result) {
-            die(json_encode('Invalid query: ' . mysql_error()));
-        } else {
-            $return = "";
-            while($arr = mysql_fetch_assoc($result)) {
-                $return[] = $arr;
-            }
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;    
-case "text_analyse":
-  try {
-        if(!$auth) 
-            break;
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
-        
-        $id = -1;
-        if(isset($_GET['id'])&&$_GET['id']!="") {
-            $id = (int)$_GET['id'];
-        }
-        if($id < 1) break;
-       
-        $query  = "SELECT raw ";
-        $query .= "FROM texts t WHERE t.id=$id;";
+        $query .= "FROM texts WHERE id=$id;";
         
         $result = mysql_query($query); 
         if (!$result) {
@@ -213,137 +384,29 @@ case "text_analyse":
         if(isset($query)) $return['query'] = $query;
         $return["error"] = $e->getMessage();
     }
-    break;              
-case "text_upload": // store text into db
-                   // POST method
-     if(!$auth) 
-         break;
-     try {
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
-        
-        if(isset($_POST["text"])&&$_POST["text"]!="") {
-            $text = $_POST["text"];       
-            if(isset($_POST["name"])) {
-                $text_name = mysql_real_escape_string(trim($_POST["name"]));
-            } else {
-                $text_name = "";
-            }
-            if(isset($_POST["author"])) {
-                $text_author = mysql_real_escape_string(trim($_POST["author"]));
-            } else {
-                $text_author = "";
-            }
-            $text_raw = mysql_real_escape_string($text);
-            $query  = "INSERT INTO texts (lang,name,author,user,raw) VALUES ";
-            $query .= "(1,\"$text_name\",\"$text_author\",".$user_id.",\"$text_raw\");"; 
-            $result = mysql_query($query);
-            if($result) {
-                $return['id'] = mysql_insert_id();
-            } else {
-                $return["msg"] = "insert error";
-            }
-        } else {
-            $return["msg"] = "no text";
-            break;
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;
-//
-// Test actions
-//
-case "mysql_test":
-    try {
-        $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-            die(json_encode("Database error!")); 
-        mysql_select_db($mysql_database, $db); 
-        $result = mysql_query("set names 'utf8'");
-        $query = "SELECT COUNT(id) AS ITEMS FROM users;"; 
-        $result = mysql_query($query); 
-        if (!$result) {
-            die(json_encode('Invalid query: ' . mysql_error()));
-        } else {
-            $return = mysql_fetch_array($result);
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;
-case "php_info":
-    phpinfo();
-    break;
-//
-// auth actions
-//
-case "logout":
-  session_destroy();
-  $return['auth'] = false;
-  $return['mgs'] = "User logged out!";
-  break;
-case "auth":
-    try{
-        $return["auth"] = "invalid_request";
-        if (isset($_GET['auth_name'])&&isset($_GET['auth_pass'])) {
-            $db = mysql_connect($mysql_host, $mysql_user, $mysql_password) or 
-                die(json_encode(Array($return, "error" => "Database error!")));
-            mysql_select_db($mysql_database, $db); 
-            $result = mysql_query("set names 'utf8'");
-            $name = mysql_real_escape_string($_GET['auth_name']);
-            $pass = mysql_real_escape_string($_GET['auth_pass']);
-            $query = "SELECT id, name FROM users WHERE email='$name' AND password='$pass';";
-            //$return['query'] = $query;
-            session_destroy();
-            session_start();
-            $res = mysql_query($query) 
-                or die(json_encode(Array($return, "error" => "Invalid query", "mysql_error" => mysql_error(), "query" => $query)));
-            if ($row = mysql_fetch_assoc($res)) {
-                if(isset($row['id'])&&$row['id']!="") {
-                    $_SESSION['user_id'] = $row['id'];
-                    $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
-                    $_SESSION['count'] = 0;
-                    $_SESSION['user_name'] = $row['name'];
-                    $date = date_create();
-                    $_SESSION['last_time'] = date_timestamp_get($date);
-                    $_SESSION['begin_time'] = $_SESSION['last_time'];
-                    $auth = true;
-                    $return["msg"] = "Authentication successful.";
-                    $return["auth"] = true;
-                } else {
-                    $auth = false;
-                    $return["auth"] = false;
-                    $return["msg"] = "No such user found.";
-                }
-            } else {
-                $return["auth"] = false;
-                $return["msg"] = "No such user found.";  
-            }
-        }
-    }
-    catch (Exception $e) {
-        if(isset($query)) $return['query'] = $query;
-        $return["error"] = $e->getMessage();
-    }
-    break;
-//
-// Default action
-//
-default :
-    $return["cmd"] = "no_command"; 
+    return $return;
 }
 
-if(isset($db))
-    mysql_close($db);
+//
+//  New case block
+//
 
-if($debug&&isset($query)) 
-    $return["query"] = $query;  
+if($cmd=="logout") $return = auth_logout();
+if($cmd=="auth")   $return = auth_login();   
+//
+if($auth) {
+    if($cmd=="dic_lst")         $return = process_table();
+    if($cmd=="dic_upd")         $return = process_table();
+    if($cmd=="dic_del")         $return = process_table();
+    if($cmd=="texts_lst")       $return = process_table();
+    if($cmd=="texts_new")       $return = process_table();
+    if($cmd=="texts_anl")       $return = text_analyser();
+    if($cmd=="sentences_lst")   $return = process_table();
+
+}    
+    
+if(isset($GLOBAL['db']))
+    mysql_close($GLOBAL['db']);  
 
 echo json_encode($return);
 
