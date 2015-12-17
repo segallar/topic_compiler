@@ -72,10 +72,8 @@
            <h2>Analytic</h2>    
       </div>    
                 
-      <div class="main-text" id="main-text-texts"> 
-          <div style="text-align:left"><br/>
+      <div class="main-text" id="main-text-texts">
           <a class="btn btn-default" href="javascript:text_list_load()">Refresh</a>
-          </div>
           <table class="table table-striped table-condensed" style="text-align:left;">
           <thead><tr><th>Name</th><th>Author</th><th>Language</th><th>Time</th><th>User</th></tr></thead> 
           <tbody id="text-list-tbl"></tbody>
@@ -105,7 +103,8 @@
               <textarea class="form-control" id="text-input"></textarea>
           </div>
           <div class="form-group" align=left>
-              <a class="btn btn-primary" href="javascript:text_upload()">Upload</a>
+              <a class="btn btn-primary" href="javascript:menuClick('texts')">Cancel</a>    
+              <a class="btn btn-default" href="javascript:text_upload()">Upload</a>
               <a class="btn btn-default" href="javascript:text_clear()">Clear form</a>
           </div>
           </form>      
@@ -113,58 +112,46 @@
       </div>
       
       <div class="main-text" id="main-text-dics">
-           <h2>Dictionary</h2>
-           <div>
-           <ul class="nav nav-pills">
-              <li role="presentation" id="dic-pill-list" class="dic-pill active"><a href="javascript:dic_click('list')">List</a></li>
-              <li role="presentation" id="dic-pill-show" class="dic-pill" style="display:none">
-                  <a href="javascript:dic_click('show')">Word</a></li>
-              <li role="presentation" id="dic-pill-upload" class="dic-pill"><a href="javascript:dic_click('upload')">Upload</a></li>
-              <li role="presentation" id="dic-pill-dict" class="dic-pill"><a href="javascript:dic_click('dict')">Dictionaries</a></li> 
-              <li role="presentation" id="dic-pill-dicadd" class="dic-pill" style="display:none">
-                  <a href="javascript:dic_click('dicadd')">Options</a></li> 
-           </ul>
-           </div>
-          
-          <div id="dic-page-list" class="dic-page"> Words list </div>
-          
-          <div id="dic-page-dict" class="dic-page" style="text-align:left;display:none">
-              <a class="btn btn-primary" href="javascript:dic_add_dic()">Add new one</a>
-              <table class="table table-striped table-condensed" style="text-align:left;">
-              <thead><tr><th>Name</th><th>Status</th><th>Language</th><th>URL</th><th>Time</th><th>User</th></tr></thead> 
-              <tbody id="dic-dict-tbl"></tbody></table>
-          </div>
-          
-          <div id="dic-page-dicadd" class="dic-page" style="text-align:left;display:none">
-              <form>
-                <div class="form-group">
-                    <label for="dic-name">Dictionary name</label>
-                    <input id="dic-name" type="text" class="form-control" placeholder="Dictionary name" />
-                </div>
-                <div class="form-group">
-                    <label for="dic-url">URL</label>
-                    <input id="dic-url" type="text" class="form-control" placeholder="URL" />
-                </div>
-                <div class="form-group">
-                    <label for="dic-file">File</label>
-                    <input id="dic-file" type="file" enctype="multipart/form-data" class="form-control" placeholder="" />
-                    <a class="btn btn-default" id="dic-file-btn" href="javascript:dic_upload(-1)">Upload</a>
-                </div>      
-                <div class="form-group">
-                    <label for="dic-comment">Comments</label>
-                    <textarea class="form-control" id="dic-comment"></textarea>
-                </div>
-                <div class="form-group" align=left>
-                  <a class="btn btn-primary" href="javascript:dic_process('upd',-1)" id="dic-page-dicadd-sub">Add new ...</a>
-                  <a class="btn btn-default" href="javascript:dic_clear()" id="dic-page-dicadd-clr">Clear form</a>
-                  <a class="btn btn-danger" id="dic-page-dicadd-del" style="display:none">Delete</a>  
-                </div> 
-              </form>
-              <div id="dic-status" class="alert hidden" role="alert"></div>
-          </div>
-          
+           <h2>Words list</h2>
       </div>    
-        
+    
+      <div class="main-text" id="main-text-dics_dics" style="text-align:left">
+          <a class="btn btn-primary" href="javascript:dic_add_dic()">Add new one</a>
+          <a class="btn btn-default" href="javascript:dic_list_load()">Refresh</a>
+          <table class="table table-striped table-condensed" style="text-align:left;">
+          <thead><tr><th>Name</th><th>Status</th><th>Language</th><th>URL</th><th>Time</th><th>User</th></tr></thead> 
+          <tbody id="dic-dict-tbl"></tbody></table>
+      </div>
+    
+      <div class="main-text" id="main-text-dics_dicadd" style="text-align:left">
+          <form>
+            <div class="form-group">
+                <label for="dic-name">Dictionary name</label>
+                <input id="dic-name" type="text" class="form-control" placeholder="Dictionary name" />
+            </div>
+            <div class="form-group">
+                <label for="dic-url">URL</label>
+                <input id="dic-url" type="text" class="form-control" placeholder="URL" />
+            </div>
+            <div class="form-group">
+                <label for="dic-file">File</label>
+                <input id="dic-file" type="file" enctype="multipart/form-data" class="form-control" placeholder="" />
+                <a class="btn btn-default" id="dic-file-btn" href="javascript:dic_upload(-1)">Upload</a>
+            </div>      
+            <div class="form-group">
+                <label for="dic-comment">Comments</label>
+                <textarea class="form-control" id="dic-comment"></textarea>
+            </div>
+            <div class="form-group" align=left>
+              <a class="btn btn-primary" href="javascript:menuClick('dics_dics')">Cancel</a>    
+              <a class="btn btn-default" href="javascript:dic_process('upd',-1)" id="dic-page-dicadd-sub">Add new ...</a>
+              <a class="btn btn-default" href="javascript:dic_clear()" id="dic-page-dicadd-clr">Clear form</a>
+              <a class="btn btn-danger" id="dic-page-dicadd-del" style="display:none">Delete</a>  
+            </div> 
+          </form>
+          <div id="dic-status" class="alert hidden" role="alert"></div>
+      </div>        
+
       <div class="main-text" id="main-text-user">
           <br/><a class="btn btn-primary" href="javascript:logout()" role="button">Logout</a>
           <table class="table table-striped table-condensed">
@@ -372,20 +359,8 @@ function dics_click(firstrun) {
     }
 }
     
-function dic_click( item ) {
-    $(".dic-page").hide();
-    $(".dic-pill").removeClass("active");
-    $("#dic-page-"+item).show();
-    $("#dic-pill-"+item).addClass("active").show();
-    if(item == "dict") {
-        dic_list_load();
-    }
-    if(item == "dicadd") {
-        $("#dic-status").hide();
-    }
-}
-    
 function dic_list_load() {
+    dic_clear();
     $("#dic-dict-tbl").html("");
     $.getJSON("/server.php?cmd=dic_lst", function (data) {
         $.each( data , function (key, val) {
@@ -403,6 +378,7 @@ function dic_list_load() {
             $(s).appendTo("#dic-dict-tbl");
         });
     }); 
+    menuClick("dics_dics");
 }
  
 function dic_clear() {
@@ -437,8 +413,7 @@ function dic_process( action, id ) {
     if(action == "del") {
         $.getJSON("/server.php?cmd=dic_del&id="+id, function(data) {});
         $("#dic-pill-dicadd").hide();
-        dic_clear();
-        dic_click( "dict" );
+        dic_list_load();
     }
     if(action == "upd") {
         var text = $("#dic-comment").val();
@@ -457,8 +432,7 @@ function dic_process( action, id ) {
                 if(result['id'] > 0) {
                     $("#dic-status").removeClass("alert-warning").addClass("alert-success").text('Record was successfully updated');
                     $("#dic-pill-dicadd").hide();
-                    dic_clear();
-                    dic_click( "dict" );
+                    dic_list_load();
                 } else {
                     $("#dic-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
                 }
@@ -475,7 +449,8 @@ function dic_add_dic() {
     $("#dic-page-dicadd-del").hide();
     $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',-1)").text("Add new");
     $("#dic-file-btn").attr("href","javascript:dic_upload(-1)");
-    dic_click( "dicadd" );
+    $(".main-text").hide();
+    $("#main-text-dics_dicadd").show();
 }
     
 function dic_view(id) {
@@ -490,7 +465,8 @@ function dic_view(id) {
         $("#dic-page-dicadd-sub").attr("href","javascript:dic_process('upd',"+data[0]["id"]+")").text("Update");
         $("#dic-page-dicadd-del").attr("href","javascript:dic_process('del',"+data[0]["id"]+")").show();
     });
-    dic_click( "dicadd" );
+    $(".main-text").hide();
+    $("#main-text-dics_dicadd").show();
 }
     
 //
@@ -554,7 +530,10 @@ var menu = {
         texts  : "Texts",
         texts_upload : "Upload"
     }, 
-    dics     : "Dictionary",
+    dics     : {
+        dics : "Dictionary",
+        dics_dics : "Dictionarys"
+    },
     user     : "User",
     test     : { 
         test : "test",
