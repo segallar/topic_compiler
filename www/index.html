@@ -506,9 +506,9 @@ function dic_view(id) {
     
 function connectionTest() {
     $("#main-text-").show();
-    $("#test").html("<p class='label label-info'>Testing connеcetion to server ... </p>");
+    $("#test").html("<p class='label label-info'>Testing connеction to server ... </p>");
     $.getJSON("/server.php?cmd=hello") 
-        .done(function( data ) {
+        .done( function( data ) {
             auth = false;
             if(data['auth']==true||data['auth']=="true") {
                 if(!auth) {
@@ -516,14 +516,19 @@ function connectionTest() {
                     show_all();
                 }
             }
-            $("#test").html("Connection to server - <b>"+data["hello"]+
-                "</b><div> Auth - "+data['auth']+"</div>");
+            if(data["hello"]!="ok") {
+                $("#test").html("<div class=\"label label-danger\">No connection to server!</div>");
+            }
+            if(data["hello"]=="ok"&&!auth) {
+                $("#test").html("<div class=\"label label-warning\">You need to enter login and password!</div>");
+            }
             if(auth) {
+                $("#test").html("")
                 $("#login_form").hide();
                 $("#main-text-hello").html("<h2>Hello "+data['session_user_name']+" !</h2>");
             }
         })
-        .fail(function( jqxhr, textStatus, error ) {
+        .fail( function( jqxhr, textStatus, error ) {
             $("#test").html("<div class='label label-danger'> Status - "+textStatus + ", error - " + error + "</div>"+
                 "<br/><br/><div class='btn btn-primary' onClick=connectionTest()>Test again</div>");
         });
@@ -532,10 +537,7 @@ function connectionTest() {
 function submit_auth() {
     $.getJSON("/server.php?cmd=auth&auth_name="+$("#exampleInputEmail1").val()+"&auth_pass="+$("#exampleInputPassword1").val(), 
         function( data ) {
-            $("#test").html("auth - "+data['auth']);
-            if(data['auth']==true||data['auth']=="true") {
-                show_all();
-            }
+            connectionTest();
     });
 }    
     
