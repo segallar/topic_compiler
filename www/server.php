@@ -6,7 +6,7 @@
 
 $server_version = '0.1.2';
 $max_session_time = 1000*60*60*24;
-$tables_subnames = Array( 'dic' => 'word_sources' );
+$tables_subnames = Array( 'dic' => 'word_source' );
 
 $cmd = "no_command";    
 if(isset($_GET['cmd'])) {
@@ -33,8 +33,8 @@ if (isset($_SESSION['user_id']) AND $_SESSION['ip'] == $_SERVER['REMOTE_ADDR']) 
     $date = date_create();
     $_SESSION['last_time'] = date_timestamp_get($date);
     $user_id = $_SESSION['user_id'];
-    // termintate session if it lives too long
-    if($_SESSION['session_begin_time'] - $_SESSION['last_time'] > $max_session_time ) {
+    // terminate session if it lives too long
+    if($_SESSION['begin_time'] - $_SESSION['last_time'] > $max_session_time ) {
         auth_logout();
     }
 }
@@ -95,7 +95,7 @@ function auth_login() {
             mysql_conn();
             $name = mysql_real_escape_string($_GET['auth_name']);
             $pass = mysql_real_escape_string($_GET['auth_pass']);
-            $query = "SELECT id, name FROM users WHERE email='$name' AND password='$pass';";
+            $query = "SELECT id, name FROM user WHERE email='$name' AND password='$pass';";
             //$return['query'] = $query;
             session_destroy();
             session_start();
@@ -170,20 +170,17 @@ function process_table() {
                 $where .= " AND ( $tbl.id=$id ) ";
             // select 
             if($subcmd == "lst") {
-                $result = mysql_query("SHOW TABLES;");
-                $tables = Array(); 
-                while($arr = mysql_fetch_array($result)) {
-                    $tables[] = $arr[0];
-                }
                 $result = mysql_query("SHOW COLUMNS FROM $tbl;");
                 $fields = "";
                 $join = "";
                 while($arr = mysql_fetch_assoc($result)) {
                     //check cross links to other tables
-                    if(in_array($arr['Field']."s",$tables)) {
-                        $fields .= $arr['Field']."s.name AS ".$arr['Field'].", ";
-                        $fields .= $tbl.".".$arr['Field']." AS ".$arr['Field']."_id, ";
-                        $join   .= " LEFT JOIN ".$arr['Field']."s ON $tbl.".$arr['Field']."=".$arr['Field']."s.id "; 
+                    if(substr($arr['Field'],strlen($arr['Field'])-3)=="_id") {
+                        $fields .= substr($arr['Field'],0,strlen($arr['Field'])-3).".name AS ".
+                            substr($arr['Field'],0,strlen($arr['Field'])-3).", ";
+                        $fields .= $tbl.".".$arr['Field']." AS ".$arr['Field'].", ";
+                        $join   .= " LEFT JOIN ".substr($arr['Field'],0,strlen($arr['Field'])-3);
+                        $join   .= " ON $tbl.".$arr['Field']."=".substr($arr['Field'],0,strlen($arr['Field'])-3).".id ";
                     } else {
                         // normal operations
                         if(substr($arr['Type'],0,8)=="longtext"||substr($arr['Type'],0,4)=="text") {
@@ -204,10 +201,11 @@ function process_table() {
                                 mysql_real_escape_string(trim((string)$_GET[$arr['Field']]))."\" ) ";
                     }
                 }
+                
                 $fields = substr($fields,0,strlen($fields)-2);
+                echo $query;
                 $query  = "SELECT $fields ";
                 $query .= "FROM $tbl $join $where;";
-                //echo $query;
                 $result = mysql_query($query); 
                 if (!$result) {
                     return Array("msg" => 'Invalid query: '.mysql_error()." $query");
@@ -261,8 +259,8 @@ function process_table() {
                              } // int
                         }
                     }
-                    if($arr['Field']=="user") {
-                        $set .= " user=".$_SESSION['user_id'].",";    
+                    if($arr['Field']=="user_id") {
+                        $set .= " user_id=".$_SESSION['user_id'].",";    
                     }
                 }
                 if($set!="") {
@@ -285,7 +283,7 @@ function process_table() {
                 $reqflg = true;
                 $result = mysql_query("SHOW COLUMNS FROM $tbl;");
                 while($arr = mysql_fetch_assoc($result)) {
-                    if($arr['Field']!="id"&&$arr['Field']!="user") {
+                    if($arr['Field']!="id"&&$arr['Field']!="user_id") {
                         if(isset($_GET[$arr['Field']])||isset($_POST[$arr['Field']])) {
                             if(substr($arr['Type'],0,7)=="varchar"||substr($arr['Type'],0,8)=="longtext"||
                                substr($arr['Type'],0,8)=="tinytext") {
@@ -309,8 +307,8 @@ function process_table() {
                             } // int
                         }
                     }
-                    if($arr['Field']=="user") {
-                        $fields .= "user,";
+                    if($arr['Field']=="user_id") {
+                        $fields .= "user_id,";
                         $values .= " ".$_SESSION['user_id'].",";    
                     }
                 }
@@ -429,10 +427,10 @@ if($auth) {
     if($cmd=="dic_lst")         $return = process_table();
     if($cmd=="dic_upd")         $return = process_table();
     if($cmd=="dic_del")         $return = process_table();
-    if($cmd=="texts_lst")       $return = process_table();
-    if($cmd=="texts_new")       $return = process_table();
-    if($cmd=="texts_anl")       $return = text_analyser();
-    if($cmd=="sentences_lst")   $return = process_table();
+    if($cmd=="text_lst")        $return = process_table();
+    if($cmd=="text_new")        $return = process_table();
+    if($cmd=="text_anl")        $return = text_analyser();
+    if($cmd=="sentence_lst")    $return = process_table();
     if($cmd=="dic_upl")         $return = dic_upload();
 }    
     

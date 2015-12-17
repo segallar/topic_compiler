@@ -213,7 +213,7 @@ function texts_click(firstrun) {
  
 function text_list_load() {
     $("#text-list-tbl").html("");
-    $.getJSON("/server.php?cmd=texts_lst", function (data) {
+    $.getJSON("/server.php?cmd=text_lst", function (data) {
         $.each( data , function (key, val) {
             var id = val['id'];
             var s = "<tr>";
@@ -282,7 +282,7 @@ function text_show_mark(id) {
 }
     
 function text_analyse(id) {
-    $.getJSON("/server.php?cmd=texts_anl&id="+id, function (data) {
+    $.getJSON("/server.php?cmd=text_anl&id="+id, function (data) {
         text_list_load();
     });
 }
@@ -292,13 +292,13 @@ function text_show(id,raw) {
     $("#main-text-texts_show").show();
     if(raw == 0) {
         $("#text-show-status").html("<h2 style=\"color:red\"><b>RAW</b></h2>");
-        $.getJSON("/server.php?cmd=texts_lst&raw=on&id="+id, function (data) {
+        $.getJSON("/server.php?cmd=text_lst&raw=on&id="+id, function (data) {
             $("#text-show-div").html(data[0]['raw']);
         });
     } else {
         $("#text-show-div").html("Loading...");
         $("#text-show-status").html("<h2 style=\"color:lightblue\"><b>PROCESSED</b></h2>");
-        $.getJSON("/server.php?cmd=sentences_lst&raw=on&text="+id, function (data) {
+        $.getJSON("/server.php?cmd=sentence_lst&raw=on&text="+id, function (data) {
             $("#text-show-div").html("");
             $.each( data , function (key, val) {
                 var s = "<a name=\"text-show-jmp-"+val["id"]+"\">";
@@ -330,7 +330,7 @@ function text_upload() {
             raw: text , 
             name: $("#text-name").val(),
             author: $("#text-author").val(),
-            lang: 1,
+            lang_id: 1,
             cmd: 'texts_new'},
         success: function(result) {
             $("#text-status").removeClass("hidden");
@@ -431,7 +431,6 @@ function dic_process( action, id ) {
                 $("#dic-status").removeClass("hidden");
                 if(result['id'] > 0) {
                     $("#dic-status").removeClass("alert-warning").addClass("alert-success").text('Record was successfully updated');
-                    $("#dic-pill-dicadd").hide();
                     dic_list_load();
                 } else {
                     $("#dic-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
