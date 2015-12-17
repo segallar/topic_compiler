@@ -5,7 +5,7 @@
 #
 
 $server_version = '0.1.2';
-
+$max_session_time = 1000*60*60*24;
 $tables_subnames = Array( 'dic' => 'word_sources' );
 
 $cmd = "no_command";    
@@ -16,9 +16,9 @@ if(isset($_POST['cmd'])) {
     $cmd = $_POST['cmd'];
 }
 
-if($cmd!="php_info")
-    header('Content-type: application/json; charset=utf-8');
+header('Content-type: application/json; charset=utf-8');
 
+// debug
 $GLOBAL['debug'] = false;
 if(isset($_GET['debug'])&&$_GET['debug']=="on") {
     $GLOBAL['debug'] = true;
@@ -33,6 +33,10 @@ if (isset($_SESSION['user_id']) AND $_SESSION['ip'] == $_SERVER['REMOTE_ADDR']) 
     $date = date_create();
     $_SESSION['last_time'] = date_timestamp_get($date);
     $user_id = $_SESSION['user_id'];
+    // termintate session if it lives too long
+    if($_SESSION['session_begin_time'] - $_SESSION['last_time'] > $max_session_time ) {
+        auth_logout();
+    }
 }
 
 $return = array( 'hello' => 'ok' , 'cmd' => $cmd , 'auth' => $auth, 'time' => date("d.m.Y H:i:s"), "version" => $server_version );
@@ -50,6 +54,7 @@ if($auth) {
     $return['session_time_delta'] = ($_SESSION['last_time']-$_SESSION['begin_time']) / (60*60);
 }
 
+// debug
 if($GLOBAL['debug']) {
     foreach($_SERVER as $key => $val) {
         $return["ENV_".$key] = $val;
@@ -71,6 +76,10 @@ function mysql_conn() {
         $result = mysql_query("set names 'utf8'");
     }
 }
+
+//
+// Auth actions
+//
 
 function auth_logout() {
     global $return;
@@ -122,7 +131,12 @@ function auth_login() {
     return $return;
 } 
 
+//
+// Main actions
+//
+
 function process_table() {
+//
 // cmd format :
 //      tbl_sub, where:
 //      tbl - table 
@@ -264,6 +278,7 @@ function process_table() {
                 }
             } // end of upd cmd
             // insert into
+            // TODO: check all NOT NULL fields  
             if($subcmd == "new") {
                 $fields = "";
                 $values = "";
@@ -312,15 +327,6 @@ function process_table() {
                     return Array( "msg" => "no values to set");
                 }
             }
-            /*
-            id	    int(11) unsigned	NO	PRI	NULL	auto_increment
-            word	int(11)	    NO		NULL	
-            freq	int(11)	    YES		NULL	
-            source	int(11)	    NO		NULL	
-            ts	    timestamp	NO		CURRENT_TIMESTAMP	
-            */
-            
- 
         }
     }
     catch (Exception $e) {
@@ -336,6 +342,8 @@ function process_table() {
 
 function text_analyser() { 
     try {
+        $brstr = "<br />";
+        
         mysql_conn();
         
         $id = -1;
@@ -358,7 +366,7 @@ function text_analyser() {
             $i = true;
             $insert_result = true;
             while( ! ($i === false) ) {
-                $i = strpos($text,"<br />",$offset);
+                $i = strpos($text,$brstr,$offset);
                 if( $i === false ) {
                     $str = mysql_real_escape_string(substr($text,$offset));
                 } else {
@@ -370,7 +378,7 @@ function text_analyser() {
                 if (!$result) {
                     $insert_result = false;
                 }
-                $offset = $i + 6;
+                $offset = $i + strlen($brstr);
                 $text_count++;   
             }
             if($insert_result) {
@@ -388,7 +396,7 @@ function text_analyser() {
 }
 
 //
-//
+// Dictionary actions
 //
 
 function dic_upload() {
@@ -403,7 +411,7 @@ function dic_upload() {
         //$contents = fread($handle, filesize($filename));
         fclose($handle);
         // parse dic file
-        
+        // ...
     }
     echo "error - $error id is $id ".var_dump($_FILES);
     if(!$error)
