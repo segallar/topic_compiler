@@ -44,7 +44,7 @@
       </div>
     </nav>
 
-    <div class="container">
+    <div class="container" id="main-contaiter">
 
       <div class="main-text" id="main-text-">
             <h1>Topic compiler</h1>
@@ -218,6 +218,110 @@ var isFunc = function(func) {
 
 var auth = false;
 
+// 
+// Show table
+//
+    
+function construct_table(el,name,show_name) { 
+    $(el).append( "<div class=\"main-text const\" id=\"main-text-"+name+"\"><h2>"+show_name+"</h2>" +
+    "<form id=\"form-"+name+"\"></form>" +
+    "<div id=\""+name+"-status\" class=\"alert hidden\" role=\"alert\"></div>"+
+    "<table class=\"table table-striped table-condensed\"><thead><tr id=\"th-"+name+"\"></tr></thead>" +
+    "<tbody id=\"tb-"+name+"\"></tbody></table></div>");
+    $.getJSON("/server.php?cmd="+tables[name]+"_str", function (data) {
+        $.each( data, function (key, val) {
+            if(val["Field"]!="id"&&val["Field"]!="raw") {
+                if( (val["Field"]).substr(val["Field"].length-3)!="_id"  ) {
+                    $("#form-"+name).append("<div class=\"form-group\"><label for=\"inp-"+name+"-"+val["Field"]+"\">"+val["Field"]+"</label>"+
+                    "<input type=\"text\" class=\"form-control\" id=\"inp-"+name+"-"+val["Field"]+"\" /></div>");
+                    $("#th-"+name).append("<th>"+val["Field"]+"</th>");
+                } else {
+                    $("#form-"+name).append("<div class=\"form-group\"><label for=\"inp-"+name+"-"+val["Field"]+"\">"+
+                    (val["Field"]).substr(0,val["Field"].length-3)+"</label>"+
+                    "<select class=\"form-control\" id=\"inp-"+name+"-"+val["Field"]+"\"></select>");
+                    $.getJSON("/server.php?cmd="+(val["Field"]).substr(0,val["Field"].length-3)+"_lst", function (adata) {
+                        $.each( adata , function ( akey, aval ) {
+                            $("<option id=\""+aval['id']+"\" >"+aval['name']+"</option>").appendTo("#inp-"+name+"-"+val["Field"]);
+                        });
+                    });  
+                    $("#th-"+name).append("<th>"+(val["Field"]).substr(0,val["Field"].length-3)+"</th>");
+                }
+            } else {
+                if(val["Field"]=="id")
+                    $("#form-"+name).append("<input type=hidden id=\"inp-"+name+"-id\" value=\"-1\">");
+            }
+        });
+    });
+    $("#form-"+name).after("<div class=\"form-group\"><a class=\"btn btn-default\" href=\"javascript:const_add('"+name+"')\">Add new</a> "+
+    " <a class=\"btn btn-default\" href=\"javascript:const_clear('"+name+"')\">Clear</a> "+
+    " <a class=\"btn btn-default\" href=\"javascript:const_refresh('"+name+"')\">Refresh</a></div>");
+}
+    
+function const_refresh(name) { 
+    var fld = new Array();
+    $.getJSON("/server.php?cmd="+tables[name]+"_str", function (data) {
+        $.each( data, function (key, val) {
+            if(val["Field"]!="id"&&val["Field"]!="raw") 
+                fld.push(val["Field"]);
+        });
+    });
+    $("#tb-"+name).html("");
+    $.getJSON("/server.php?cmd="+tables[name]+"_lst", function (data) {
+        $.each(data, function (key, val) {
+            $("#tb-"+name).append("<tr id=\"tbl-"+name+"-tr-"+key+"\"></tr>");
+            $.each(fld, function (akey, aval) {
+                $("#tbl-"+name+"-tr-"+key).append("<td>"+val[aval]+"</td>");
+            });
+        });
+    }); 
+}
+ 
+function const_clear(name) { 
+    $.getJSON("/server.php?cmd="+tables[name]+"_str", function (data) {
+         $.each( data, function (key, val) {
+            if(val["Field"]!="id") {
+                $("#inp-"+name+"-"+val["Field"]).val("");
+            } else {
+                $("#inp-"+name+"-"+val["Field"]).val("-1");
+            }
+         });
+    });
+}
+    
+function const_add(name) { 
+    $.getJSON("/server.php?cmd="+tables[name]+"_str", function (data) {
+        var data_obj = { 
+            cmd :    tables[name]+"_upd" 
+        };
+        console.log("1");
+        $.each( data, function (key, val) {
+            data_obj[val["Field"]] = $("#inp-"+name+"-"+val["Field"]).val();
+            console.log( val["Field"]+" = "+data_obj[val["Field"]] );
+        });
+        console.log(data_obj.cmd);
+        $.ajax({
+            url: '/server.php',
+            type: 'GET',
+            data: data_obj,
+            success: function(result) {
+                $("#"+name+"-status").removeClass("hidden");
+                if(result['id'] > 0) {
+                    $("#"+name+"-status").removeClass("alert-warning").addClass("alert-success").text('Record was successfully updated');
+                    const_clear(name);
+                    const_refresh(name);
+                } else {
+                    $("#"+name+"-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
+                }
+            },
+            error: function( jqXHR, textStatus, errorThrown ) {
+                $("#"+name+"-status").removeClass("alert-success").addClass("alert-warning").text('Error! '+textStatus);
+            }
+        });
+    });
+    
+    
+}
+    
 //
 // Texts
 //
@@ -553,8 +657,13 @@ var menu = {
         texts_upload : "Upload"
     }, 
     dics     : {
-        dics : "Dictionary",
-        dics_dics : "Dictionarys"
+        dics            : "Dictionary",
+        dics_dics       : "Dictionarys",
+        dics_pos        : "Part of Speech", // части речи
+        dics_lex_type   : "Lexeme types", // тип словоформы
+        dics_wf_type    : "Word factor's types", // тип показателя 
+        dics_lang       : "Languages" // язык
+        
     },
     user     : "User",
     test     : { 
@@ -564,6 +673,13 @@ var menu = {
     }
 };
   
+var tables = {
+    dics_pos        : "pos", // части речи
+    dics_lex_type   : "lex_type", // тип словоформы
+    dics_wf_type    : "wf_type", // тип показателя 
+    dics_lang       : "lang"
+};
+    
 function menu_click(item) {
     if(item!="") { 
         $("#menu-item-").css("color","darkgray"); //#101010
@@ -579,6 +695,11 @@ function menu_click(item) {
         eval(item+"_click("+$("#menu-item-"+item).hasClass('first-run')+")");
         $("#menu-item-"+item).removeClass('first-run');
     }
+    if($("#main-text-" + item).hasClass("const")&&$("#menu-item-"+item).hasClass('first-run')) {
+        const_refresh(item);
+        $("#menu-item-"+item).removeClass('first-run');
+    }
+    
 }
     
 function show_menu() {
@@ -613,6 +734,12 @@ function show_menu() {
 
 function show_all() {
     $("#login_form").hide();
+    
+    construct_table("#main-contaiter","dics_pos","Part of Speech");
+    construct_table("#main-contaiter","dics_lex_type","Lexeme types");
+    construct_table("#main-contaiter","dics_wf_type","Word factor's types");
+    construct_table("#main-contaiter","dics_lang","Languages");
+    
     show_menu();
 }
     
@@ -637,6 +764,7 @@ $( document ).ready( function() {
     
     // Testing connection to server
     connectionTest();
+    
 
 });
 </script>

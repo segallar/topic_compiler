@@ -141,6 +141,7 @@ function process_table() {
 //      tbl_sub, where:
 //      tbl - table 
 //      sub - subcommand:
+//          str - structure of table
 //          lst - list of records
 //          upd - update record
 //          new - insert new record or upd command with id=-1
@@ -168,7 +169,20 @@ function process_table() {
             $where = " WHERE TRUE ";
             if(isset($id)) 
                 $where .= " AND ( $tbl.id=$id ) ";
-            // select 
+            // *** structure *** str cmd
+            if($subcmd == "str") {
+                $result = mysql_query("SHOW COLUMNS FROM $tbl;");
+                if($result) {
+                    $return = "";
+                    while($arr = mysql_fetch_assoc($result)) {
+                        $return[] = $arr;
+                    }
+                    return $return;
+                } else {
+                    return Array("msg" => 'STR->Invalid query: ' . mysql_error());
+                }
+            } // end of structure
+            // *** select *** lst cmd 
             if($subcmd == "lst") {
                 $result = mysql_query("SHOW COLUMNS FROM $tbl;");
                 $fields = "";
@@ -203,7 +217,7 @@ function process_table() {
                 }
                 
                 $fields = substr($fields,0,strlen($fields)-2);
-                echo $query;
+                //echo $query;
                 $query  = "SELECT $fields ";
                 $query .= "FROM $tbl $join $where;";
                 $result = mysql_query($query); 
@@ -223,7 +237,7 @@ function process_table() {
                 $query = "DELETE FROM $tbl $where ;";
                 $result = mysql_query($query); 
                 if (!$result) {
-                    return Array("msg" => 'Invalid query: ' . mysql_error());
+                    return Array("msg" => 'SEL->Invalid query: ' . mysql_error());
                 } else {
                     return Array("msg" => "ok");
                 }
@@ -424,14 +438,16 @@ if($cmd=="logout") $return = auth_logout();
 if($cmd=="auth")   $return = auth_login();   
 //
 if($auth) {
-    if($cmd=="dic_lst")         $return = process_table();
-    if($cmd=="dic_upd")         $return = process_table();
-    if($cmd=="dic_del")         $return = process_table();
-    if($cmd=="text_lst")        $return = process_table();
-    if($cmd=="text_new")        $return = process_table();
-    if($cmd=="text_anl")        $return = text_analyser();
-    if($cmd=="sentence_lst")    $return = process_table();
-    if($cmd=="dic_upl")         $return = dic_upload();
+    $subcmd = substr($cmd,strlen($cmd)-4);
+    
+    if($subcmd == "_lst"||$subcmd == "_str"||$subcmd == "_upd"||$subcmd == "_del"||$subcmd == "_new") {
+        $return = process_table();
+    } else {
+        
+        if($cmd=="text_anl")        $return = text_analyser();
+        if($cmd=="dic_upl")         $return = dic_upload();
+    } 
+    
 }    
     
 if(isset($GLOBAL['db']))
