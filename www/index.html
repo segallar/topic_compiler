@@ -241,7 +241,7 @@ function construct_table(el,name,show_name) {
                     "<select class=\"form-control\" id=\"inp-"+name+"-"+val["Field"]+"\"></select>");
                     $.getJSON("/server.php?cmd="+(val["Field"]).substr(0,val["Field"].length-3)+"_lst", function (adata) {
                         $.each( adata , function ( akey, aval ) {
-                            $("<option id=\""+aval['id']+"\" >"+aval['name']+"</option>").appendTo("#inp-"+name+"-"+val["Field"]);
+                            $("<option value=\""+aval['id']+"\" >"+aval['name']+"</option>").appendTo("#inp-"+name+"-"+val["Field"]);
                         });
                     });  
                     $("#th-"+name).append("<th>"+(val["Field"]).substr(0,val["Field"].length-3)+"</th>");
@@ -261,16 +261,31 @@ function const_refresh(name) {
     var fld = new Array();
     $.getJSON("/server.php?cmd="+tables[name]+"_str", function (data) {
         $.each( data, function (key, val) {
-            if(val["Field"]!="id"&&val["Field"]!="raw") 
-                fld.push(val["Field"]);
+            if(val["Field"]!="id"&&val["Field"]!="raw") {
+                if((val["Field"]).substr(val["Field"].length-3)!="_id") {
+                    fld.push(val["Field"]);
+                } else {
+                    fld.push((val["Field"]).substr(0,val["Field"].length-3));
+                }  
+            } 
         });
     });
     $("#tb-"+name).html("");
     $.getJSON("/server.php?cmd="+tables[name]+"_lst", function (data) {
         $.each(data, function (key, val) {
-            $("#tb-"+name).append("<tr id=\"tbl-"+name+"-tr-"+key+"\"></tr>");
+            $("<tr id=\"tbl-"+name+"-tr-"+key+"\"></tr>").appendTo("#tb-"+name);
+            var first = true;
             $.each(fld, function (akey, aval) {
-                $("#tbl-"+name+"-tr-"+key).append("<td>"+val[aval]+"</td>");
+                if(first) {
+                    $("<td><a href=\"javascript:const_edit('"+name+"',"+val["id"]+")\">" +
+                    "<span class=\"glyphicon glyphicon-edit\" aria-hidden=\"true\"></span></a> " +
+                    "<a href=\"javascript:const_del('"+name+"',"+val["id"]+")\">" +
+                    "<span class=\"glyphicon glyphicon-erase\" aria-hidden=\"true\"></span></a> " +
+                    val[aval]+"</td>").appendTo("#tbl-"+name+"-tr-"+key);
+                    first = false;
+                } else {
+                    $("#tbl-"+name+"-tr-"+key).append("<td>"+val[aval]+"</td>");
+                }
             });
         });
     }); 
@@ -318,8 +333,40 @@ function const_add(name) {
             }
         });
     });
+}
     
+function const_del(name, id) {
+    $.ajax({
+        url: '/server.php',
+        type: 'GET',
+        data: { 
+            id  : id,
+            cmd : tables[name]+"_del" 
+        },
+        success: function(result) {
+            $("#"+name+"-status").removeClass("hidden");
+            if(result['msg'] == "ok") {
+                $("#"+name+"-status").removeClass("alert-warning").addClass("alert-success").text('Record was successfully deleted');
+                const_clear(name);
+                const_refresh(name);
+            } else {
+                $("#"+name+"-status").removeClass("alert-success").addClass("alert-warning").text('Some error!');
+            }
+        },
+        error: function( jqXHR, textStatus, errorThrown ) {
+            $("#"+name+"-status").removeClass("alert-success").addClass("alert-warning").text('Error! '+textStatus);
+        }
+    });
+}
     
+function const_edit(name, id) {
+    $.getJSON("/server.php?cmd="+tables[name]+"_lst&id="+id, function (data) {
+        $.each(data[0], function (key,val) {
+            if ( $("#inp-"+name+"-"+key).length ) {
+                $("#inp-"+name+"-"+key).val(val);
+            } 
+        });
+    });
 }
     
 //
